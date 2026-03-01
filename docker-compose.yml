@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 services:
   # ==================== MySQL ====================
   mysql:
@@ -119,3 +120,35 @@ volumes:
   mysql_data:
   redis_data:
 
+=======
+services:
+  waoowaoo:
+    build: .
+    container_name: waoowaoo
+    restart: unless-stopped
+
+
+    ports:
+      - "3001:3001"
+
+    env_file:
+      - path: .env
+        required: false
+
+    volumes:
+      - waoowaoo-data:/app/./data/mysql
+
+
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+
+
+volumes:
+  waoowaoo-data:
+
+>>>>>>> 1697e55 (Add deployment config)

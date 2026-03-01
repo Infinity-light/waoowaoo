@@ -1,0 +1,98 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy source to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "."
+          target: "/opt/apps/waoowaoo"
+          rm: true
+          overwrite: true
+
+      - name: Build and deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/apps/waoowaoo
+            # Generate .env
+            cat > .env << 'ENVEOF'
+            STORAGE_TYPE=local
+            WATCHDOG_INTERVAL_MS=30000
+            TASK_HEARTBEAT_TIMEOUT_MS=90000
+            QUEUE_CONCURRENCY_IMAGE=50
+            QUEUE_CONCURRENCY_VIDEO=50
+            QUEUE_CONCURRENCY_VOICE=20
+            QUEUE_CONCURRENCY_TEXT=50
+            BULL_BOARD_HOST=0.0.0.0
+            BULL_BOARD_PORT=3010
+            BULL_BOARD_BASE_PATH=/admin/queues
+            LOG_UNIFIED_ENABLED=true
+            LOG_LEVEL=INFO
+            LOG_FORMAT=json
+            LOG_DEBUG_ENABLED=false
+            LOG_AUDIT_ENABLED=true
+            LOG_SERVICE=waoowaoo
+            BILLING_MODE=SHADOW
+            LLM_STREAM_EPHEMERAL_ENABLED=true
+            ENVEOF
+            sed -i 's/^ *//' .env
+            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+            echo "REDIS_HOST=${{ secrets.REDIS_HOST }}" >> .env
+            echo "REDIS_PORT=${{ secrets.REDIS_PORT }}" >> .env
+            echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> .env
+            echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" >> .env
+            echo "NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}" >> .env
+            echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env
+            echo "INTERNAL_TASK_TOKEN=${{ secrets.INTERNAL_TASK_TOKEN }}" >> .env
+            echo "API_ENCRYPTION_KEY=${{ secrets.API_ENCRYPTION_KEY }}" >> .env
+            echo "BULL_BOARD_USER=${{ secrets.BULL_BOARD_USER }}" >> .env
+            echo "BULL_BOARD_PASSWORD=${{ secrets.BULL_BOARD_PASSWORD }}" >> .env
+            docker compose build
+            docker compose up -d --remove-orphans
+
+            echo "Running database migration..."
+            docker compose exec -T waoowaoo npx prisma migrate deploy
+
+            docker image prune -f
+
+      - name: Health check
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "Waiting for container to start..."
+            sleep 10
+            for i in 1 2 3 4 5; do
+              STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3001/ || true)
+              if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
+                echo "Health check passed (HTTP $STATUS)"
+                exit 0
+              fi
+              echo "Attempt $i: HTTP $STATUS, retrying in 5s..."
+              sleep 5
+            done
+            echo "Health check failed after 5 attempts"
+            docker logs waoowaoo --tail 20
+            exit 1

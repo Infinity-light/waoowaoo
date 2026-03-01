@@ -1,0 +1,66 @@
+{
+  "project": {
+    "name": "waoowaoo",
+    "type": "nextjs",
+    "language": "typescript",
+    "port": 3001,
+    "buildCmd": "npm run build",
+    "startCmd": "npm run start",
+    "projectStructure": "single-dir"
+  },
+  "server": {
+    "host": "47.98.171.82",
+    "user": "root",
+    "sshKeyPath": "C:\\Users\\WaterFish\\.ssh\\id_rsa",
+    "deployDir": "/opt/apps"
+  },
+  "domain": {
+    "enabled": true,
+    "name": "manga.godpenai.com",
+    "https": true
+  },
+  "secrets": [
+    "DATABASE_URL",
+    "REDIS_HOST",
+    "REDIS_PORT",
+    "REDIS_PASSWORD",
+    "NEXTAUTH_SECRET",
+    "NEXTAUTH_URL",
+    "CRON_SECRET",
+    "INTERNAL_TASK_TOKEN",
+    "API_ENCRYPTION_KEY",
+    "BULL_BOARD_USER",
+    "BULL_BOARD_PASSWORD"
+  ],
+  "envVars": {
+    "STORAGE_TYPE": "local",
+    "WATCHDOG_INTERVAL_MS": "30000",
+    "TASK_HEARTBEAT_TIMEOUT_MS": "90000",
+    "QUEUE_CONCURRENCY_IMAGE": "50",
+    "QUEUE_CONCURRENCY_VIDEO": "50",
+    "QUEUE_CONCURRENCY_VOICE": "20",
+    "QUEUE_CONCURRENCY_TEXT": "50",
+    "BULL_BOARD_HOST": "0.0.0.0",
+    "BULL_BOARD_PORT": "3010",
+    "BULL_BOARD_BASE_PATH": "/admin/queues",
+    "LOG_UNIFIED_ENABLED": "true",
+    "LOG_LEVEL": "INFO",
+    "LOG_FORMAT": "json",
+    "LOG_DEBUG_ENABLED": "false",
+    "LOG_AUDIT_ENABLED": "true",
+    "LOG_SERVICE": "waoowaoo",
+    "BILLING_MODE": "SHADOW",
+    "LLM_STREAM_EPHEMERAL_ENABLED": "true"
+  },
+  "branches": {
+    "production": "main"
+  },
+  "database": {
+    "type": "mysql",
+    "location": "container",
+    "dataDir": "./data/mysql",
+    "initCmd": "npx prisma db push",
+    "migrateCmd": "npx prisma migrate deploy",
+    "createAdmin": false
+  }
+}
