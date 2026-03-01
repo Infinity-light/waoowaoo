@@ -56,12 +56,12 @@ services:
       # 存储：默认本地存储
       STORAGE_TYPE: local
       # 认证
-      NEXTAUTH_URL: "http://localhost:3000"
-      NEXTAUTH_SECRET: "waoowaoo-default-secret-2026"
+      NEXTAUTH_URL: "https://waoo.867635.xyz"
+      NEXTAUTH_SECRET: "lFk+gFRlucWLBEshOxGe5DiOmok38z+xCERedwt00Us="
       # 内部密钥
-      CRON_SECRET: "waoowaoo-docker-cron-secret"
-      INTERNAL_TASK_TOKEN: "waoowaoo-docker-task-token"
-      API_ENCRYPTION_KEY: "waoowaoo-opensource-fixed-key-2026"
+      CRON_SECRET: "shzhTuHopyJz1KPQ4FxSOKXm5o/p9e4z"
+      INTERNAL_TASK_TOKEN: "UtY6piIUMQr5WnH9NoqRPJ6OKrA4UFoa"
+      API_ENCRYPTION_KEY: "5cb53b1623d107bee7e26229b6303f02"
       # Worker 配置
       WATCHDOG_INTERVAL_MS: "30000"
       TASK_HEARTBEAT_TIMEOUT_MS: "90000"
@@ -84,7 +84,7 @@ services:
       LOG_SERVICE: "waoowaoo"
       LOG_REDACT_KEYS: "password,token,apiKey,apikey,authorization,cookie,secret,access_token,refresh_token"
       # 计费
-      BILLING_MODE: "OFF"
+      BILLING_MODE: "SHADOW"
       # 流式
       LLM_STREAM_EPHEMERAL_ENABLED: "true"
     ports:
@@ -118,3 +118,4 @@ services:
 volumes:
   mysql_data:
   redis_data:
+

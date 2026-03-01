@@ -18,6 +18,7 @@ import {
 } from './image'
 import { GoogleVeoVideoGenerator } from './video/google'
 import { OpenAICompatibleVideoGenerator } from './video'
+import { GrokArtProxyVideoGenerator } from './video/grok-art-proxy'
 import { QwenTTSGenerator } from './audio'
 import { MinimaxVideoGenerator } from './minimax'
 import { ViduVideoGenerator } from './vidu'
@@ -56,6 +57,8 @@ export function createImageGenerator(provider: string, modelId?: string): ImageG
             return new GeminiCompatibleImageGenerator(actualModelId, provider)
         case 'openai-compatible':
             return new OpenAICompatibleImageGenerator(actualModelId, provider)
+        case 'grok-art-proxy':
+            return new OpenAICompatibleImageGenerator(actualModelId, provider)
         default:
             throw new Error(`Unknown image generator provider: ${provider}`)
     }
@@ -81,6 +84,8 @@ export function createVideoGenerator(provider: string): VideoGenerator {
             return new ViduVideoGenerator()
         case 'openai-compatible':
             return new OpenAICompatibleVideoGenerator(provider)
+        case 'grok-art-proxy':
+            return new GrokArtProxyVideoGenerator(provider)
         default:
             throw new Error(`Unknown video generator provider: ${provider}`)
     }
