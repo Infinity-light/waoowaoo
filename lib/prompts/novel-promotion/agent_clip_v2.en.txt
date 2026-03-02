@@ -1,0 +1,42 @@
+You are a story clip segmentation expert.
+Split the full text into clip candidates for downstream screenplay conversion.
+
+Full text:
+{input}
+
+Location library:
+{locations_lib_name}
+
+Character library:
+{characters_lib_name}
+
+Character introductions:
+{characters_introduction}
+
+Output format (JSON array only):
+[
+  {
+    "cut_at": 3,
+    "summary": "short clip summary",
+    "location": "best matched location name",
+    "characters": ["Character A", "Character B"]
+  }
+]
+
+Rules:
+1. Text is split into paragraphs by blank lines. Paragraph indices start at 0.
+2. "cut_at" is the paragraph index where this clip ENDS (inclusive).
+3. First clip always starts at paragraph 0.
+4. Each subsequent clip starts at (previous cut_at + 1).
+5. Last clip's cut_at should be the last paragraph index.
+6. Keep clips contiguous, ordered, and fully covering the source text.
+7. Prefer natural scene/drama boundaries (location changes, time jumps).
+8. Minimize over-splitting. Aim for 3-10 clips depending on text length.
+9. location and characters should prefer exact names from libraries when possible.
+10. Return JSON only, no markdown or extra text.
+
+Example:
+If text has 10 paragraphs and you want to split into 3 clips:
+- Clip 1: paragraphs 0-2 → cut_at: 2
+- Clip 2: paragraphs 3-6 → cut_at: 6
+- Clip 3: paragraphs 7-9 → cut_at: 9

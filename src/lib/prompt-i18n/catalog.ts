@@ -30,6 +30,10 @@ export const PROMPT_CATALOG: Record<PromptId, PromptCatalogEntry> = {
     pathStem: 'novel-promotion/agent_clip',
     variableKeys: ['input', 'locations_lib_name', 'characters_lib_name', 'characters_introduction'],
   },
+  [PROMPT_IDS.NP_AGENT_CLIP_V2]: {
+    pathStem: 'novel-promotion/agent_clip_v2',
+    variableKeys: ['input', 'locations_lib_name', 'characters_lib_name', 'characters_introduction'],
+  },
   [PROMPT_IDS.NP_AGENT_SHOT_VARIANT_ANALYSIS]: {
     pathStem: 'novel-promotion/agent_shot_variant_analysis',
     variableKeys: ['panel_description', 'shot_type', 'camera_move', 'location', 'characters_info'],

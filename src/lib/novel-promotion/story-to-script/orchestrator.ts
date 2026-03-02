@@ -2,6 +2,11 @@ import { buildCharactersIntroduction } from '@/lib/constants'
 import { normalizeAnyError } from '@/lib/errors/normalize'
 import { createScopedLogger } from '@/lib/logging/core'
 import { createClipContentMatcher, type ClipMatchLevel } from './clip-matching'
+import {
+  splitIntoParagraphs,
+  buildParagraphClips,
+  type ParagraphClip,
+} from './paragraph-splitter'
 import { jsonrepair } from 'jsonrepair'
 
 export type StoryToScriptStepMeta = {
@@ -27,6 +32,17 @@ export type StoryToScriptClipCandidate = {
   content: string
   matchLevel: ClipMatchLevel
   matchConfidence: number
+}
+
+// 基于段落索引的clip类型（方案2）
+export type ParagraphBasedClipCandidate = {
+  id: string
+  startParagraph: number
+  endParagraph: number
+  summary: string
+  location: string | null
+  characters: string[]
+  content: string
 }
 
 export type StoryToScriptScreenplayResult = {
@@ -152,6 +168,63 @@ function parseClipArray(responseText: string): Record<string, unknown>[] {
   }
 
   throw new Error('Invalid clip JSON format')
+}
+
+/**
+ * 解析基于段落索引的clip切分结果
+ * 格式: [{ "cut_at": 5, "summary": "...", "location": "...", "characters": [...] }]
+ */
+function parseParagraphClipArray(
+  responseText: string,
+  paragraphs: string[],
+): ParagraphBasedClipCandidate[] {
+  const rawList = parseClipArray(responseText)
+  if (rawList.length === 0) return []
+
+  // 检查是否是新格式（有 cut_at 字段）
+  const isNewFormat = rawList.every(
+    (item) => typeof item.cut_at === 'number',
+  )
+
+  if (!isNewFormat) {
+    return []
+  }
+
+  const clips: ParagraphBasedClipCandidate[] = []
+  let currentStart = 0
+
+  for (let i = 0; i < rawList.length; i++) {
+    const item = rawList[i]
+    const endParagraph = Math.min(
+      asInt(item.cut_at),
+      paragraphs.length - 1,
+    )
+
+    if (currentStart > endParagraph) {
+      continue
+    }
+
+    clips.push({
+      id: `clip_${i + 1}`,
+      startParagraph: currentStart,
+      endParagraph,
+      summary: asString(item.summary),
+      location: asString(item.location) || null,
+      characters: toStringArray(item.characters),
+      content: paragraphs.slice(currentStart, endParagraph + 1).join('\n\n'),
+    })
+
+    currentStart = endParagraph + 1
+  }
+
+  return clips
+}
+
+function asInt(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(0, Math.floor(value))
+  }
+  return 0
 }
 
 function identity<T>(v: T): T { return v }
@@ -637,10 +710,14 @@ export async function runStoryToScriptOrchestrator(
       })),
   )
 
-  onLog?.('开始步骤2：片段切分（最多重试1次）', {
+  onLog?.('开始步骤2：片段切分（基于段落索引）', {
     charactersLibName,
     locationsLibName,
   })
+
+  // 预先将内容分割成段落
+  const paragraphs = splitIntoParagraphs(content)
+  onLog?.('文本分段完成', { paragraphCount: paragraphs.length })
 
   const splitPromptBase = applyTemplate(promptTemplates.clipPromptTemplate, {
     input: content,
@@ -648,7 +725,8 @@ export async function runStoryToScriptOrchestrator(
     characters_lib_name: charactersLibName || '无',
     characters_introduction: charactersIntroduction || '暂无角色介绍',
   })
-  const splitPrompt = `${splitPromptBase}${CLIP_BOUNDARY_SUFFIX}`
+  // 添加段落数量信息到 prompt
+  const splitPrompt = `${splitPromptBase}\n\n[段落统计]\n全文共 ${paragraphs.length} 个段落。\n\n${CLIP_BOUNDARY_SUFFIX}`
 
   let splitStep: StoryToScriptStepOutput | null = null
   let clipList: StoryToScriptClipCandidate[] = []
@@ -680,6 +758,32 @@ export async function runStoryToScriptOrchestrator(
       continue
     }
 
+    // 尝试新的段落索引切分方式
+    const paraClips = parseParagraphClipArray(output.text, paragraphs)
+
+    if (paraClips.length > 0) {
+      // 新格式解析成功，转换为旧的 clip 格式以保持兼容
+      splitStep = output
+      clipList = paraClips.map((clip) => ({
+        id: clip.id,
+        startText: paragraphs[clip.startParagraph].slice(0, 30),
+        endText: paragraphs[clip.endParagraph].slice(-30) || paragraphs[clip.endParagraph],
+        summary: clip.summary,
+        location: clip.location,
+        characters: clip.characters,
+        content: clip.content,
+        matchLevel: 'L1' as ClipMatchLevel,
+        matchConfidence: 1,
+      }))
+      onLog?.('段落索引切分成功', {
+        attempt,
+        clipCount: clipList.length,
+        format: 'paragraph_based',
+      })
+      break
+    }
+
+    // 回退到旧的文本锚点匹配方式
     const matcher = createClipContentMatcher(content)
     const nextClipList: StoryToScriptClipCandidate[] = []
     let searchFrom = 0
@@ -721,6 +825,7 @@ export async function runStoryToScriptOrchestrator(
         attempt,
         clipCount: nextClipList.length,
         levelCount,
+        format: 'text_anchor',
       })
       break
     }

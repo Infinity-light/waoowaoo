@@ -119,7 +119,8 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
 
   const characterPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_AGENT_CHARACTER_PROFILE, job.data.locale)
   const locationPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_SELECT_LOCATION, job.data.locale)
-  const clipPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_AGENT_CLIP, job.data.locale)
+  // 使用基于段落索引的新版切分 prompt
+  const clipPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_AGENT_CLIP_V2, job.data.locale)
   const screenplayPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_SCREENPLAY_CONVERSION, job.data.locale)
 
   const streamContext = createWorkerLLMStreamContext(job, 'story_to_script')
