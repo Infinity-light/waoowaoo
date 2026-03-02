@@ -263,6 +263,7 @@ export async function chatCompletion(
           ...(reasoning ? {} : { temperature }),
           maxRetries,
           ...(maxOutputTokens ? { maxTokens: maxOutputTokens } : {}),
+          ...(options.jsonMode ? { responseFormat: { type: 'json' } } : {}),
           ...(aiSdkProviderOptions ? { providerOptions: aiSdkProviderOptions } : {}),
         }
         const aiSdkResult = await generateText(generateParams)
@@ -322,6 +323,7 @@ export async function chatCompletion(
         messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
         temperature,
         ...(maxOutputTokens ? { max_tokens: maxOutputTokens } : {}),
+        ...(options.jsonMode ? { response_format: { type: 'json_object' } } : {}),
         ...extraParams,
       })
       const normalizedCompletion = completion as OpenAI.Chat.Completions.ChatCompletion

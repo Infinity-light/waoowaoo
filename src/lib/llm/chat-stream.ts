@@ -366,6 +366,7 @@ export async function chatCompletionStream(
           ...(useReasoning ? {} : { temperature: options.temperature ?? 0.7 }),
           maxRetries: options.maxRetries ?? 2,
           ...(options.maxOutputTokens ? { maxTokens: options.maxOutputTokens } : {}),
+          ...(options.jsonMode ? { responseFormat: { type: 'json' } } : {}),
           ...(aiSdkProviderOptions ? { providerOptions: aiSdkProviderOptions } : {}),
         })
 
@@ -657,6 +658,7 @@ export async function chatCompletionStream(
         ...(isOpenRouterReasoning ? {} : { temperature: options.temperature ?? 0.7 }),
         stream: true,
         ...(options.maxOutputTokens ? { max_tokens: options.maxOutputTokens } : {}),
+        ...(options.jsonMode ? { response_format: { type: 'json_object' } } : {}),
         ...extraParams,
       } as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming)
 
