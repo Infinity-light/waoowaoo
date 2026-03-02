@@ -641,7 +641,7 @@ export async function runStoryToScriptOrchestrator(
           stepMeta,
           screenplayPrompt,
           'screenplay_conversion',
-          4096,
+          65535,
           parseScreenplayObject,
         )
         const scenes = Array.isArray(screenplay.scenes) ? screenplay.scenes : []
