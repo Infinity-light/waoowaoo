@@ -291,7 +291,15 @@ function parseScreenplayObject(responseText: string): Record<string, unknown> {
   // Level 1: direct parse
   try {
     return JSON.parse(cleaned) as Record<string, unknown>
-  } catch { /* continue */ }
+  } catch (err) {
+    orchestratorLogger.warn({
+      action: 'parseScreenplay.l1_failed',
+      message: 'Level 1 JSON parse failed',
+      error: err instanceof Error ? err.message : String(err),
+      preview: cleaned.slice(5400, 5450),
+      length: cleaned.length,
+    })
+  }
 
   // Level 2: escape control characters
   try {
@@ -304,7 +312,20 @@ function parseScreenplayObject(responseText: string): Record<string, unknown> {
   } catch { /* continue */ }
 
   // Level 4: structural repair (truncation, missing commas, etc.)
-  return JSON.parse(jsonrepair(cleaned)) as Record<string, unknown>
+  try {
+    return JSON.parse(jsonrepair(cleaned)) as Record<string, unknown>
+  } catch (err) {
+    orchestratorLogger.error({
+      action: 'parseScreenplay.failed',
+      message: 'All JSON parse levels failed',
+      error: err instanceof Error ? err.message : String(err),
+      previewStart: cleaned.slice(0, 200),
+      previewError: cleaned.slice(5350, 5450),
+      previewEnd: cleaned.slice(-200),
+      length: cleaned.length,
+    })
+    throw err
+  }
 }
 
 function asString(value: unknown): string {
