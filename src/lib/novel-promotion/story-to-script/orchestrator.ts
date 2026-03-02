@@ -2,6 +2,7 @@ import { buildCharactersIntroduction } from '@/lib/constants'
 import { normalizeAnyError } from '@/lib/errors/normalize'
 import { createScopedLogger } from '@/lib/logging/core'
 import { createClipContentMatcher, type ClipMatchLevel } from './clip-matching'
+import { jsonrepair } from 'jsonrepair'
 
 export type StoryToScriptStepMeta = {
   stepId: string
@@ -113,7 +114,11 @@ function parseJSONObject(responseText: string): Record<string, unknown> {
     return JSON.parse(escapeControlCharsInJsonStrings(cleaned)) as Record<string, unknown>
   } catch { /* continue */ }
 
-  return JSON.parse(fixUnescapedQuotesInJson(cleaned)) as Record<string, unknown>
+  try {
+    return JSON.parse(fixUnescapedQuotesInJson(cleaned)) as Record<string, unknown>
+  } catch { /* continue */ }
+
+  return JSON.parse(jsonrepair(cleaned)) as Record<string, unknown>
 }
 
 function parseClipArray(responseText: string): Record<string, unknown>[] {
@@ -294,7 +299,12 @@ function parseScreenplayObject(responseText: string): Record<string, unknown> {
   } catch { /* continue */ }
 
   // Level 3: fix unescaped interior double quotes + control chars
-  return JSON.parse(fixUnescapedQuotesInJson(cleaned)) as Record<string, unknown>
+  try {
+    return JSON.parse(fixUnescapedQuotesInJson(cleaned)) as Record<string, unknown>
+  } catch { /* continue */ }
+
+  // Level 4: structural repair (truncation, missing commas, etc.)
+  return JSON.parse(jsonrepair(cleaned)) as Record<string, unknown>
 }
 
 function asString(value: unknown): string {
