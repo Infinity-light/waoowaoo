@@ -16,8 +16,8 @@ Character introductions:
 Output format (JSON array only):
 [
   {
-    "start": "exact start snippet from source text (>=5 chars)",
-    "end": "exact end snippet from source text (>=5 chars)",
+    "start": "exact start snippet from source text (10-30 chars)",
+    "end": "exact end snippet from source text (10-30 chars)",
     "summary": "short clip summary",
     "location": "best matched location name",
     "characters": ["Character A", "Character B"]
@@ -30,3 +30,4 @@ Rules:
 3. Minimize over-splitting.
 4. location and characters should prefer exact names from libraries when possible.
 5. Return JSON only, no markdown or extra text.
+6. start and end must be 10-30 characters, taken verbatim from the source text.
