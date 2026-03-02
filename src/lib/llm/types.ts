@@ -6,6 +6,7 @@ export interface ChatCompletionOptions {
     reasoning?: boolean
     reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high'
     maxRetries?: number
+    maxOutputTokens?: number
     // 💰 计费相关
     projectId?: string   // 用于计费（如果不传，使用 'system' 作为默认值）
     action?: string      // 计费操作名称

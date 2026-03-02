@@ -78,6 +78,7 @@ export async function chatCompletion(
     reasoning = true,
     reasoningEffort = 'high',
     maxRetries = 2,
+    maxOutputTokens,
   } = options
   const projectId =
     typeof options.projectId === 'string' && options.projectId.trim().length > 0
@@ -194,7 +195,7 @@ export async function chatCompletion(
           model: resolvedModelId,
           messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
           temperature,
-          max_completion_tokens: 65535,
+          max_completion_tokens: maxOutputTokens ?? 65535,
           ...extraParams,
         } as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming)
         const completionParts = getCompletionParts(completion)
@@ -260,6 +261,7 @@ export async function chatCompletion(
           // 推理模型不支持 temperature，仅在非推理模式下传递
           ...(reasoning ? {} : { temperature }),
           maxRetries,
+          ...(maxOutputTokens ? { maxTokens: maxOutputTokens } : {}),
           ...(aiSdkProviderOptions ? { providerOptions: aiSdkProviderOptions } : {}),
         }
         const aiSdkResult = await generateText(generateParams)
@@ -318,6 +320,7 @@ export async function chatCompletion(
         model: resolvedModelId,
         messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
         temperature,
+        ...(maxOutputTokens ? { max_tokens: maxOutputTokens } : {}),
         ...extraParams,
       })
       const normalizedCompletion = completion as OpenAI.Chat.Completions.ChatCompletion

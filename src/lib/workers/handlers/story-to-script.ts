@@ -131,7 +131,6 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
     action: string,
     _maxOutputTokens: number,
   ): Promise<StoryToScriptStepOutput> => {
-    void _maxOutputTokens
     await assertTaskActive(job, `story_to_script_step:${meta.stepId}`)
     const progress = 15 + Math.min(55, Math.floor((meta.stepIndex / Math.max(1, meta.stepTotal)) * 55))
     await reportTaskProgress(job, progress, {
@@ -163,6 +162,7 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
       temperature,
       reasoning,
       reasoningEffort,
+      maxOutputTokens: _maxOutputTokens,
     })
 
     // Log AI response output (full raw text included for debugging)

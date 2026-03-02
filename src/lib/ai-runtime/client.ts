@@ -52,6 +52,7 @@ export async function executeAiTextStep(input: AiStepExecutionInput): Promise<Ai
         temperature: input.temperature,
         reasoning: input.reasoning,
         reasoningEffort: input.reasoningEffort,
+        maxOutputTokens: input.maxOutputTokens,
         projectId: input.projectId,
         action: input.action,
         streamStepId: input.meta.stepId,
