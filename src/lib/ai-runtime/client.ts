@@ -53,6 +53,7 @@ export async function executeAiTextStep(input: AiStepExecutionInput): Promise<Ai
         reasoning: input.reasoning,
         reasoningEffort: input.reasoningEffort,
         maxOutputTokens: input.maxOutputTokens,
+        jsonMode: input.jsonMode,
         projectId: input.projectId,
         action: input.action,
         streamStepId: input.meta.stepId,

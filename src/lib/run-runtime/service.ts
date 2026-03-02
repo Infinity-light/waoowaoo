@@ -546,6 +546,35 @@ export async function requestRunCancel(params: {
 }
 
 export async function appendRunEventWithSeq(input: RunEventInput): Promise<RunEvent> {
+  // 对 STEP_CHUNK 特殊处理：跳过数据库写入，但保持 seq 和状态更新
+  if (input.eventType === RUN_EVENT_TYPE.STEP_CHUNK) {
+    const run = await runtimeClient.graphRun.update({
+      where: { id: input.runId },
+      data: { lastSeq: { increment: 1 } },
+      select: { id: true, lastSeq: true },
+    })
+
+    // 仍然调用 applyRunProjection 保持 step 状态更新
+    await runtimeClient.$transaction(async (tx) => {
+      await applyRunProjection(tx, input)
+    })
+
+    const now = new Date()
+    return {
+      id: `chunk-${run.lastSeq}`,
+      runId: input.runId,
+      projectId: input.projectId,
+      userId: input.userId,
+      seq: run.lastSeq,
+      eventType: input.eventType,
+      stepKey: input.stepKey || null,
+      attempt: input.attempt || null,
+      lane: input.lane || null,
+      payload: input.payload || null,
+      createdAt: now.toISOString(),
+    }
+  }
+
   return await runtimeClient.$transaction(async (tx) => {
     const run = await tx.graphRun.update({
       where: { id: input.runId },
@@ -576,7 +605,6 @@ export async function appendRunEventWithSeq(input: RunEventInput): Promise<RunEv
     return mapEventRow(created)
   })
 }
-
 export async function listRunEventsAfterSeq(params: {
   runId: string
   userId: string

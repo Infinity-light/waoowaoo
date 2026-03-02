@@ -227,6 +227,7 @@ export async function chatCompletionStream(
         temperature: options.temperature ?? 0.7,
         max_completion_tokens: options.maxOutputTokens ?? 65535,
         stream: true,
+        ...(options.jsonMode ? { response_format: { type: 'json_object' } } : {}),
         ...extraParams,
       } as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming)
 

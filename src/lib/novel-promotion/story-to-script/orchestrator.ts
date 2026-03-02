@@ -55,6 +55,7 @@ export type StoryToScriptOrchestratorInput = {
     prompt: string,
     action: string,
     maxOutputTokens: number,
+    jsonMode?: boolean,
   ) => Promise<StoryToScriptStepOutput>
   onStepError?: (meta: StoryToScriptStepMeta, message: string) => void
   onLog?: (message: string, details?: Record<string, unknown>) => void
@@ -483,6 +484,7 @@ async function runStepWithRetry<T>(
   action: string,
   maxOutputTokens: number,
   parse: (text: string) => T,
+  jsonMode?: boolean,
 ): Promise<{ output: StoryToScriptStepOutput; parsed: T }> {
   let lastError: Error | null = null
   for (let attempt = 1; attempt <= MAX_STEP_ATTEMPTS; attempt++) {
@@ -495,7 +497,7 @@ async function runStepWithRetry<T>(
         stepTitle: baseMeta.stepTitle,
       }
     try {
-      const output = await runStep(meta, prompt, action, maxOutputTokens)
+      const output = await runStep(meta, prompt, action, maxOutputTokens, jsonMode)
       const parsed = parse(output.text)
       return { output, parsed }
     } catch (error) {
@@ -766,6 +768,7 @@ export async function runStoryToScriptOrchestrator(
           'screenplay_conversion',
           65535,
           parseScreenplayObject,
+          true, // jsonMode: 强制模型输出合法 JSON（治本方案）
         )
         const scenes = Array.isArray(screenplay.scenes) ? screenplay.scenes : []
         return {

@@ -130,6 +130,7 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
     prompt: string,
     action: string,
     _maxOutputTokens: number,
+    _jsonMode?: boolean,
   ): Promise<StoryToScriptStepOutput> => {
     await assertTaskActive(job, `story_to_script_step:${meta.stepId}`)
     const progress = 15 + Math.min(55, Math.floor((meta.stepIndex / Math.max(1, meta.stepTotal)) * 55))
@@ -163,6 +164,7 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
       reasoning,
       reasoningEffort,
       maxOutputTokens: _maxOutputTokens,
+      jsonMode: _jsonMode,
     })
 
     // Log AI response output (full raw text included for debugging)

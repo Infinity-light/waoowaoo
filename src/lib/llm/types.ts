@@ -7,6 +7,7 @@ export interface ChatCompletionOptions {
     reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high'
     maxRetries?: number
     maxOutputTokens?: number
+    jsonMode?: boolean  // 强制模型输出合法 JSON（治本方案）
     // 💰 计费相关
     projectId?: string   // 用于计费（如果不传，使用 'system' 作为默认值）
     action?: string      // 计费操作名称

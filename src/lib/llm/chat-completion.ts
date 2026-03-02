@@ -196,6 +196,7 @@ export async function chatCompletion(
           messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
           temperature,
           max_completion_tokens: maxOutputTokens ?? 65535,
+          ...(options.jsonMode ? { response_format: { type: 'json_object' } } : {}),
           ...extraParams,
         } as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming)
         const completionParts = getCompletionParts(completion)

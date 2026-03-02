@@ -40,6 +40,7 @@ export type AiStepExecutionInput = {
   reasoning?: boolean
   reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high'
   maxOutputTokens?: number
+  jsonMode?: boolean
 }
 
 export type AiStepExecutionResult = {
