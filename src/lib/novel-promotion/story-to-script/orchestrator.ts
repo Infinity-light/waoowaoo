@@ -274,8 +274,91 @@ function fixUnescapedQuotesInJson(input: string): string {
   return out
 }
 
+function extractJsonFromText(text: string): string {
+  // Try to find JSON object boundaries
+  let braceDepth = 0
+  let inString = false
+  let escaped = false
+  let startIdx = -1
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+
+    if (!inString) {
+      if (ch === '{') {
+        if (braceDepth === 0) startIdx = i
+        braceDepth++
+      } else if (ch === '}') {
+        braceDepth--
+        if (braceDepth === 0 && startIdx !== -1) {
+          return text.slice(startIdx, i + 1)
+        }
+      } else if (ch === '"') {
+        inString = true
+      }
+    } else {
+      if (escaped) {
+        escaped = false
+      } else if (ch === '\\') {
+        escaped = true
+      } else if (ch === '"') {
+        inString = false
+      }
+    }
+  }
+
+  // Fallback: try simple extraction
+  const firstBrace = text.indexOf('{')
+  const lastBrace = text.lastIndexOf('}')
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return text.slice(firstBrace, lastBrace + 1)
+  }
+
+  return text
+}
+
+function aggressiveJsonRepair(input: string): string {
+  // Remove markdown code blocks
+  let text = input
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/, '')
+    .replace(/\s*```$/g, '')
+    .trim()
+
+  // Extract JSON object
+  text = extractJsonFromText(text)
+
+  // Fix common JSON issues:
+  // 1. Remove BOM
+  text = text.replace(/^\uFEFF/, '')
+
+  // 2. Fix trailing commas in arrays and objects
+  text = text.replace(/,(\s*[}\]])/g, '$1')
+
+  // 3. Fix missing commas between array elements (when ][ appears or }[ appears)
+  text = text.replace(/\]\s*\[/g, '],[')
+  text = text.replace(/}\s*{/g, '},{')
+  text = text.replace(/}\s*\[/g, '],[')
+  text = text.replace(/\]\s*{/g, '],{')
+
+  // 4. Replace smart quotes with regular quotes in string contexts
+  text = text.replace(/[\u201C\u201D]/g, '\\"')
+  text = text.replace(/[\u2018\u2019]/g, "'")
+
+  // 5. Remove control characters except \n, \r, \t
+  text = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+
+  // 6. Fix unescaped newlines in strings (aggressive - replace with space)
+  // This is a last resort
+  text = text.replace(/(\r\n|\n|\r)(?!\s*["{}[\],])/g, '\\n')
+
+  return text
+}
+
 function parseScreenplayObject(responseText: string): Record<string, unknown> {
   let cleaned = responseText.trim()
+
+  // Level 1: direct parse with markdown removal
   cleaned = cleaned
     .replace(/^```json\s*/i, '')
     .replace(/^```\s*/, '')
@@ -296,7 +379,7 @@ function parseScreenplayObject(responseText: string): Record<string, unknown> {
       action: 'parseScreenplay.l1_failed',
       message: 'Level 1 JSON parse failed',
       error: err instanceof Error ? err.message : String(err),
-      preview: cleaned.slice(5400, 5450),
+      preview: cleaned.slice(Math.max(0, (err as Error).message.match(/position (\d+)/)?.[1] ? parseInt((err as Error).message.match(/position (\d+)/)![1]) - 50 : 5400), Math.min(cleaned.length, (err as Error).message.match(/position (\d+)/)?.[1] ? parseInt((err as Error).message.match(/position (\d+)/)![1]) + 50 : 5450)),
       length: cleaned.length,
     })
   }
@@ -311,7 +394,13 @@ function parseScreenplayObject(responseText: string): Record<string, unknown> {
     return JSON.parse(fixUnescapedQuotesInJson(cleaned)) as Record<string, unknown>
   } catch { /* continue */ }
 
-  // Level 4: structural repair (truncation, missing commas, etc.)
+  // Level 4: aggressive repair
+  try {
+    const repaired = aggressiveJsonRepair(responseText)
+    return JSON.parse(repaired) as Record<string, unknown>
+  } catch { /* continue */ }
+
+  // Level 5: structural repair (truncation, missing commas, etc.)
   try {
     return JSON.parse(jsonrepair(cleaned)) as Record<string, unknown>
   } catch (err) {
@@ -320,7 +409,7 @@ function parseScreenplayObject(responseText: string): Record<string, unknown> {
       message: 'All JSON parse levels failed',
       error: err instanceof Error ? err.message : String(err),
       previewStart: cleaned.slice(0, 200),
-      previewError: cleaned.slice(5350, 5450),
+      previewError: cleaned.slice(Math.max(0, cleaned.length / 2 - 100), Math.min(cleaned.length, cleaned.length / 2 + 100)),
       previewEnd: cleaned.slice(-200),
       length: cleaned.length,
     })
