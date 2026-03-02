@@ -404,16 +404,29 @@ function parseScreenplayObject(responseText: string): Record<string, unknown> {
   try {
     return JSON.parse(jsonrepair(cleaned)) as Record<string, unknown>
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err)
+    // Extract position from error message like "position 5864"
+    const posMatch = errMsg.match(/position (\d+)/)
+    const pos = posMatch ? parseInt(posMatch[1]) : null
+    const previewAround = pos !== null
+      ? cleaned.slice(Math.max(0, pos - 100), Math.min(cleaned.length, pos + 100))
+      : cleaned.slice(0, 200)
+
     orchestratorLogger.error({
       action: 'parseScreenplay.failed',
       message: 'All JSON parse levels failed',
-      error: err instanceof Error ? err.message : String(err),
+      error: errMsg,
       previewStart: cleaned.slice(0, 200),
       previewError: cleaned.slice(Math.max(0, cleaned.length / 2 - 100), Math.min(cleaned.length, cleaned.length / 2 + 100)),
       previewEnd: cleaned.slice(-200),
       length: cleaned.length,
     })
-    throw err
+
+    // Include preview in thrown error so it appears in UI
+    throw new Error(
+      `JSON parse failed at ${pos ?? 'unknown'}: ${errMsg}. ` +
+      `Preview around error: ...${previewAround.replace(/\s+/g, ' ')}...`,
+    )
   }
 }
 
