@@ -225,7 +225,7 @@ export async function chatCompletionStream(
         model: resolvedModelId,
         messages,
         temperature: options.temperature ?? 0.7,
-        max_completion_tokens: 65535,
+        max_completion_tokens: options.maxOutputTokens ?? 65535,
         stream: true,
         ...extraParams,
       } as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming)
@@ -364,6 +364,7 @@ export async function chatCompletionStream(
           // 推理模型不支持 temperature，仅在非推理模式下传递
           ...(useReasoning ? {} : { temperature: options.temperature ?? 0.7 }),
           maxRetries: options.maxRetries ?? 2,
+          ...(options.maxOutputTokens ? { maxTokens: options.maxOutputTokens } : {}),
           ...(aiSdkProviderOptions ? { providerOptions: aiSdkProviderOptions } : {}),
         })
 
@@ -654,6 +655,7 @@ export async function chatCompletionStream(
         // OpenRouter 推理模型不支持 temperature
         ...(isOpenRouterReasoning ? {} : { temperature: options.temperature ?? 0.7 }),
         stream: true,
+        ...(options.maxOutputTokens ? { max_tokens: options.maxOutputTokens } : {}),
         ...extraParams,
       } as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming)
 
