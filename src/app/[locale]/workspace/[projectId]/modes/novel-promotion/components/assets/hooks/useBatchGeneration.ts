@@ -11,8 +11,10 @@ import { logError as _ulogError } from '@/lib/logging/core'
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
+import { useQueryClient } from '@tanstack/react-query'
 import { CharacterAppearance } from '@/types/project'
 import { useProjectAssets, useRefreshProjectAssets, useGenerateProjectCharacterImage, useGenerateProjectLocationImage, type Character } from '@/lib/query/hooks'
+import { queryKeys } from '@/lib/query/keys'
 import {
     createManualKeyBaseline,
     isAppearanceTaskRunning,
@@ -31,6 +33,8 @@ export function useBatchGeneration({
     handleGenerateImage: externalHandleGenerateImage
 }: UseBatchGenerationProps) {
     const t = useTranslations('assets')
+    const queryClient = useQueryClient()
+
     // 🔥 直接订阅缓存 - 消除 props drilling
     const { data: assets } = useProjectAssets(projectId)
     const characters = useMemo(() => assets?.characters ?? [], [assets?.characters])
@@ -38,6 +42,22 @@ export function useBatchGeneration({
 
     // 🔥 使用刷新函数
     const refreshAssets = useRefreshProjectAssets(projectId)
+
+    // 🔥 新增：强制刷新所有相关查询
+    const forceRefreshAll = useCallback(async () => {
+        // 刷新资产
+        await refreshAssets()
+        // 刷新任务状态
+        await queryClient.invalidateQueries({
+            queryKey: ['tasks', 'targetStates', projectId],
+            exact: false
+        })
+        // 刷新活跃任务列表
+        await queryClient.invalidateQueries({
+            queryKey: queryKeys.tasks.all(projectId),
+            exact: false
+        })
+    }, [refreshAssets, queryClient, projectId])
 
     // 🔥 V6.6：内部 mutation hooks
     const generateCharacterImage = useGenerateProjectCharacterImage(projectId)
@@ -221,7 +241,12 @@ export function useBatchGeneration({
         } finally {
             setIsBatchSubmittingAll(false)
             setBatchProgress({ current: 0, total: 0 })
-            refreshAssets()
+            // 🔥 关键修复：提交后立即刷新状态
+            await forceRefreshAll()
+            // 2秒后再次刷新（给后端写入时间）
+            setTimeout(() => forceRefreshAll(), 2000)
+            // 5秒后最后一次刷新
+            setTimeout(() => forceRefreshAll(), 5000)
         }
     }
 
@@ -309,7 +334,10 @@ export function useBatchGeneration({
         } finally {
             setIsBatchSubmittingAll(false)
             setBatchProgress({ current: 0, total: 0 })
-            refreshAssets()
+            // 🔥 关键修复：提交后立即刷新状态
+            await forceRefreshAll()
+            setTimeout(() => forceRefreshAll(), 2000)
+            setTimeout(() => forceRefreshAll(), 5000)
         }
     }
 

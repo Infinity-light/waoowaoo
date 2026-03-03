@@ -186,6 +186,18 @@ async function resolveProjectNameForLogging(projectId: string): Promise<void> {
   }
 }
 
+// 🔥 任务类型超时配置
+const TASK_TIMEOUT_MS: Record<string, number> = {
+  [TASK_TYPE.IMAGE_CHARACTER]: 300000,    // 5分钟
+  [TASK_TYPE.IMAGE_LOCATION]: 300000,     // 5分钟
+  [TASK_TYPE.IMAGE_PANEL]: 300000,        // 5分钟
+  [TASK_TYPE.VIDEO_PANEL]: 600000,        // 10分钟
+  [TASK_TYPE.LIP_SYNC]: 300000,           // 5分钟
+  [TASK_TYPE.SCRIPT_TO_STORYBOARD_RUN]: 600000, // 10分钟
+  [TASK_TYPE.STORY_TO_SCRIPT_RUN]: 600000, // 10分钟
+  default: 600000 // 10分钟默认
+}
+
 export async function withTaskLifecycle(job: Job<TaskJobData>, handler: (job: Job<TaskJobData>) => Promise<Record<string, unknown> | void>) {
   const data = job.data
   const taskId = data.taskId
@@ -196,9 +208,37 @@ export async function withTaskLifecycle(job: Job<TaskJobData>, handler: (job: Jo
   // Register project name for per-project log file routing
   void resolveProjectNameForLogging(data.projectId)
 
+  // 🔥 获取任务超时时间
+  const taskTimeout = TASK_TIMEOUT_MS[data.type] || TASK_TIMEOUT_MS.default
+
   const heartbeatTimer = setInterval(() => {
     void touchTaskHeartbeat(taskId)
   }, 10_000)
+
+  // 🔥 新增：任务级超时计时器
+  let timeoutTimer: NodeJS.Timeout | null = null
+  let isTimedOut = false
+
+  const startTimeoutTimer = () => {
+    timeoutTimer = setTimeout(() => {
+      isTimedOut = true
+      logger.error({
+        action: 'worker.timeout',
+        message: `Task exceeded maximum duration (${taskTimeout}ms)`,
+        durationMs: Date.now() - startedAt,
+        taskType: data.type,
+      })
+    }, taskTimeout)
+  }
+
+  const clearTimeoutTimer = () => {
+    if (timeoutTimer) {
+      clearTimeout(timeoutTimer)
+      timeoutTimer = null
+    }
+  }
+
+  startTimeoutTimer()
 
   try {
     logger.info({
@@ -263,6 +303,15 @@ export async function withTaskLifecycle(job: Job<TaskJobData>, handler: (job: Jo
     })
 
     const { result, textUsage } = await withTextUsageCollection(async () => await handler(job))
+
+    // 🔥 检查是否已超时
+    if (isTimedOut) {
+      clearTimeoutTimer()
+      throw new Error('TASK_TIMEOUT:Task exceeded maximum duration')
+    }
+
+    clearTimeoutTimer() // 成功完成，清除超时
+
     if (billingInfo?.billable) {
       billingInfo = (await settleTaskBilling({
         id: taskId,
@@ -493,6 +542,7 @@ export async function withTaskLifecycle(job: Job<TaskJobData>, handler: (job: Jo
     throw new UnrecoverableError(normalizedError.message || 'Task failed')
   } finally {
     clearInterval(heartbeatTimer)
+    clearTimeoutTimer() // 🔥 确保超时计时器也被清除
   }
 }
 

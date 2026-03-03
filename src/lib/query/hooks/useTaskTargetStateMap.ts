@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMemo, useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../keys'
 import type { TaskIntent } from '@/lib/task/intent'
 import type { TaskTargetOverlayMap } from '../task-target-overlay'
@@ -276,8 +276,10 @@ export function useTaskTargetStateMap(
   options: {
     enabled?: boolean
     staleTime?: number
+    refetchInterval?: number | false
   } = {},
 ) {
+  const queryClient = useQueryClient()
   const normalizedTargets = useMemo(() => normalizeTargets(targets), [targets])
   const serializedTargets = useMemo(
     () => JSON.stringify(normalizedTargets),
@@ -288,9 +290,17 @@ export function useTaskTargetStateMap(
   const query = useQuery({
     queryKey: queryKeys.tasks.targetStates(projectId || '', serializedTargets),
     enabled,
-    staleTime: options.staleTime ?? 15000,
-    refetchInterval: false,
-    refetchOnMount: false,
+    staleTime: options.staleTime ?? 2000, // 🔥 从15000降到2000
+    refetchInterval: options.refetchInterval ?? ((query) => {
+      // 🔥 关键修复：动态轮询 - 有运行中任务时每秒轮询
+      const data = query.state.data as TaskTargetState[] | undefined
+      const hasRunning = data?.some(
+        (s) => s.phase === 'queued' || s.phase === 'processing'
+      )
+      return hasRunning ? 1000 : false
+    }),
+    refetchIntervalInBackground: true, // 🔥 后台也轮询
+    refetchOnMount: true, // 🔥 挂载时刷新
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     queryFn: async () => {
@@ -405,7 +415,8 @@ export function useTaskTargetStateMap(
       }
     }
     return map
-  }, [normalizedTargets, overlayQuery.data, query.data])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [normalizedTargets, overlayQuery.data, query.data, projectId])
 
   const mergedData = useMemo(() => {
     return normalizedTargets.map((target) =>
@@ -426,10 +437,27 @@ export function useTaskTargetStateMap(
       byKey.get(stateKey(targetType, targetId)) || null
   }, [byKey])
 
+  // 🔥 新增：强制刷新函数
+  const forceRefresh = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.tasks.targetStates(projectId || '', serializedTargets),
+    })
+  }, [queryClient, projectId, serializedTargets])
+
+  // 🔥 新增：便捷判断属性
+  const hasRunningTasks = useMemo(() => {
+    return mergedData.some(
+      (s) => s.phase === 'queued' || s.phase === 'processing'
+    )
+  }, [mergedData])
+
   return {
     ...query,
     data: mergedData,
     byKey,
     getState,
+    forceRefresh,
+    hasRunningTasks,
+    isLoading: query.isLoading || query.isFetching,
   }
 }

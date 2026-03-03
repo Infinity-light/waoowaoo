@@ -4,8 +4,12 @@ import { createImageWorker } from './image.worker'
 import { createVideoWorker } from './video.worker'
 import { createVoiceWorker } from './voice.worker'
 import { createTextWorker } from './text.worker'
+import { startTaskWatchdog } from '@/lib/cron/task-watchdog'
 
 const workers = [createImageWorker(), createVideoWorker(), createVoiceWorker(), createTextWorker()]
+
+// 🔥 启动任务看门狗
+startTaskWatchdog()
 
 _ulogInfo('[Workers] started:', workers.length)
 

@@ -29,6 +29,7 @@ export interface GenerateResult {
     async?: boolean          // 是否为异步任务
     endpoint?: string        // 异步任务端点（向后兼容）
     externalId?: string      // 🔥 标准格式的异步任务标识符（如 FAL:IMAGE:fal-ai/nano-banana-pro:requestId）
+    retryable?: boolean      // 🔥 新增：错误是否可重试
 }
 
 // ============================================================
