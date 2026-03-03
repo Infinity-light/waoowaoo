@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getRequestId } from '@/lib/api-errors'
+import { getRequestId, ApiError } from '@/lib/api-errors'
 import { submitTask } from '@/lib/task/submitter'
 import { TASK_TYPE, type TaskType } from '@/lib/task/types'
 import { buildDefaultTaskBillingInfo, isBillableTaskType } from '@/lib/billing'
@@ -97,8 +97,9 @@ export async function maybeSubmitLLMTask(params: {
 
   // 确保 payload 中包含真实的 analysisModel，用于精确计费
   // 根据 worker 实际使用的 model 来源选择对应的配置
-  const hasModel = typeof payload.analysisModel === 'string' && payload.analysisModel.trim()
-    || typeof payload.model === 'string' && payload.model.trim()
+  const hasAnalysisModel = typeof payload.analysisModel === 'string' && payload.analysisModel.trim()
+  const hasModelField = typeof payload.model === 'string' && payload.model.trim()
+  let hasModel = !!(hasAnalysisModel || hasModelField)
   if (!hasModel && isBillableTaskType(params.type)) {
     const useUserLevelConfig = params.type === TASK_TYPE.EPISODE_SPLIT_LLM
       || params.type === TASK_TYPE.REFERENCE_TO_CHARACTER
@@ -106,13 +107,22 @@ export async function maybeSubmitLLMTask(params: {
       const userConfig = await getUserModelConfig(params.userId)
       if (userConfig.analysisModel) {
         payload.analysisModel = userConfig.analysisModel
+        hasModel = true
       }
     } else {
       const modelConfig = await getProjectModelConfig(params.projectId, params.userId)
       if (modelConfig.analysisModel) {
         payload.analysisModel = modelConfig.analysisModel
+        hasModel = true
       }
     }
+  }
+
+  // 可计费任务必须有模型配置，否则无法计算费用
+  if (!hasModel && isBillableTaskType(params.type)) {
+    throw new ApiError('INVALID_PARAMS', {
+      message: '请先前往「设置中心」配置AI分析模型（analysisModel）',
+    })
   }
 
   const billingInfo = isBillableTaskType(params.type)
