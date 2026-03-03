@@ -74,10 +74,10 @@ export function encryptApiKey(plaintext: string): string {
 
 /**
  * 解密 API Key
- * 
+ *
  * @param ciphertext 加密后的字符串（encryptApiKey 的返回值）
  * @returns 明文 API Key
- * 
+ *
  * @example
  * const decrypted = decryptApiKey('a1b2c3d4e5f6....:d7e8f9a0b1c2....:1234567890ab....')
  * // 返回: "sk-or-v1-abc123..."
@@ -88,26 +88,39 @@ export function decryptApiKey(ciphertext: string): string {
     }
 
     const parts = ciphertext.split(':')
+    // 如果不是三部分，可能是明文，直接返回
     if (parts.length !== 3) {
-        throw new Error('加密数据格式错误')
+        return ciphertext
     }
 
     const [ivHex, authTagHex, encryptedHex] = parts
 
-    const key = deriveEncryptionKey()
-    const iv = Buffer.from(ivHex, 'hex')
-    const authTag = Buffer.from(authTagHex, 'hex')
-    const encrypted = Buffer.from(encryptedHex, 'hex')
+    // 验证是否为有效的 hex 字符串
+    const hexRegex = /^[0-9a-fA-F]+$/
+    if (!hexRegex.test(ivHex) || !hexRegex.test(authTagHex) || !hexRegex.test(encryptedHex)) {
+        return ciphertext
+    }
 
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
-    decipher.setAuthTag(authTag)
+    try {
+        const key = deriveEncryptionKey()
+        const iv = Buffer.from(ivHex, 'hex')
+        const authTag = Buffer.from(authTagHex, 'hex')
+        const encrypted = Buffer.from(encryptedHex, 'hex')
 
-    const decrypted = Buffer.concat([
-        decipher.update(encrypted),
-        decipher.final()
-    ])
+        const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
+        decipher.setAuthTag(authTag)
 
-    return decrypted.toString('utf8')
+        const decrypted = Buffer.concat([
+            decipher.update(encrypted),
+            decipher.final()
+        ])
+
+        return decrypted.toString('utf8')
+    } catch (error) {
+        // 解密失败，可能是密钥不匹配或数据损坏，返回原始值
+        _ulogError('API key decryption failed, returning original value:', error)
+        return ciphertext
+    }
 }
 
 /**
