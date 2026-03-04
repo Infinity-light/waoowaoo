@@ -1299,9 +1299,10 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   }
 
   if (normalizedDefaults !== undefined) {
-    if (billingMode !== 'OFF') {
-      validateDefaultModelPricing(normalizedDefaults)
-    }
+    // 定价验证已禁用：允许用户保存任意模型，无论是否有定价配置
+    // if (billingMode !== 'OFF') {
+    //   validateDefaultModelPricing(normalizedDefaults)
+    // }
     if (normalizedDefaults.analysisModel !== undefined) {
       updateData.analysisModel = normalizedDefaults.analysisModel || null
     }
